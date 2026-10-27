@@ -2,48 +2,79 @@
 
 [返回作品集](../README.md) · [技术决策](design-decisions.md) · [工程案例](engineering-cases.md)
 
-本页展示当前**软件工作站**的分层与调用关系，来源于私有 TCM 项目架构和当前代码的脱敏整理。早期产品 PPT 中的名医数字孪生、端到端辨证、可穿戴医疗等属于团队长期目标，**不画入已交付系统**。
+结合早期产品方案与已落地的软件原型，本页同时说明**当前可运行的采集系统**和**后续基于 Qwen 底座扩展的辅助诊断架构**。实线表示当前能力或独立服务，虚线表示未完成的系统集成或规划；这些连线不等于已实现自主工具调用和医疗诊断。
 
-## 01｜整体系统架构：双屏 + 业务中枢 + 模型/设备
+## 01｜整体架构：Qwen 底座、采集 Agent 与专业 Tool
 
 ```mermaid
 flowchart TB
-  subgraph UI["工作站前端：Electron + Vue"]
-    P["患者屏：数字人 / 字幕 / 采集进度"]
-    S["医助屏：接诊 / 控制 / 标注 / 回看"]
+  subgraph Human["交互入口与医助协同"]
+    PAT["患者屏 · Vue / Electron<br/>数字人 / 字幕 / 引导"]
+    STAFF["医助屏 · Vue / Electron<br/>发起 / 监控 / 复核"]
+    OAC["OpenAvatarChat<br/>VAD / ASR / TTS / 数字人"]
   end
-  subgraph Core["FastAPI 业务与工作流"]
-    API["会话 API / 医助 WebSocket / 只读 SSE"]
-    LG["LangGraph：采集主图 + 子图"]
-    CP[("SQLite 检查点")]
+  subgraph Brain["AI 业务中枢"]
+    BACK["FastAPI<br/>会话 API / WS / 只读 SSE / 设备协调"]
+    GRAPH["LangGraph 采集工作流<br/>问诊子图 / 阶段控制 / 检查点"]
+    QWEN["🧠 Qwen3.5-9B 智能底座<br/>当前：理解 / 字段提取 / 问句生成<br/>本地 SGLang 推理服务"]
   end
-  subgraph AI["模型与交互服务"]
-    OAC["OpenAvatarChat：语音 / 数字人"]
-    Q["SGLang：Qwen3.5-9B"]
+  subgraph Sources["外部硬件与专用算法"]
+    CAM["摄像头 / 补光灯<br/>图片 · 视频 · 媒体服务"]
+    MIC["麦克风 / 音响"]
+    PULSE["脉诊仪 / 传感设备"]
+    PULSAPP["Linux 脉诊采集程序<br/>独立真机联调中"]
+    VIS["视觉算法服务<br/>Face / Tongue / Sublingual / General<br/>独立 ToC FastAPI"]
   end
-  subgraph Capture["多模态采集与档案"]
-    CAM["会话摄像头 / 面舌采集"]
-    MEDIA["独立媒体入口 / 预览回看"]
-    ARCH[("图像 / 视频 / 结构化记录")]
+  subgraph Data["采集资料与后续特征层"]
+    REC[("会话信息 / 多模态媒体档案")]
+    STANDARD["标准化特征 / 医生复核<br/>离线工作持续推进"]
   end
-  P <-->|"语音/数字人"| OAC
-  P <-->|"只读状态 / 媒体"| API
-  S <-->|"HTTP / WS 控制"| API
-  OAC <-->|"会话与 LLM 兼容门面"| API
-  API <--> LG
-  LG <--> Q
-  LG <--> CP
-  API <--> CAM
-  CAM --> ARCH
-  CAM --> MEDIA
-  ARCH --> MEDIA
-  MEDIA --> P
-  MEDIA --> S
+  subgraph Roadmap["后续辅助诊断 · 目标架构"]
+    DIAG["诊断子 Agent<br/>候选证候 / 证据缺口 / 动态追问"]
+    TOOL["Tool 适配与权限管理<br/>算法服务 / 脉诊 / 专业检索"]
+    RAG["知识库 / RAG 与医生经验"]
+    REVIEW["医生审核 / 个性化校准"]
+  end
+  APP["ToC APP / 外部调用方"]
+
+  PAT <--> OAC
+  MIC --> OAC
+  OAC <-->|"业务回复 / 会话关联"| BACK
+  STAFF <-->|"HTTP + WebSocket"| BACK
+  PAT <-->|"只读 SSE"| BACK
+  BACK <--> GRAPH
+  GRAPH <--> QWEN
+  BACK --> CAM
+  CAM --> REC
+  BACK --> REC
+  APP --> VIS
+  PULSE --> PULSAPP
+  PULSAPP -.->|"待完整集成"| BACK
+  REC -.->|"标准化接入推进"| STANDARD
+  GRAPH -.->|"后续子图/路由"| DIAG
+  QWEN -.->|"规划 / 推理与结果整合"| DIAG
+  STANDARD -.-> DIAG
+  DIAG -.-> TOOL
+  DIAG -.-> RAG
+  DIAG -.-> REVIEW
+  TOOL -.-> VIS
+  TOOL -.-> PULSAPP
+
+  classDef brain fill:#deefff,stroke:#175caa,stroke-width:3px,color:#123653;
+  classDef planned fill:#f7f7f7,stroke:#9098a4,stroke-dasharray:5 4,color:#47515d;
+  classDef ongoing fill:#fff3de,stroke:#b9802e,color:#554020;
+  class QWEN brain;
+  class DIAG,TOOL,RAG,REVIEW planned;
+  class PULSAPP,STANDARD ongoing;
 ```
 
-**设计理由**：单个 Electron 应用创建两个 `BrowserWindow`，患者端专注被动引导，医助端发指令和处理异常；两者不各自掌握一套业务状态。FastAPI 作为业务中枢，LangGraph 管理执行与检查点，数字人交互与推理容器独立部署，便于升级、定位与维护。
+**Qwen 底座的准确定位**：当前 Qwen 经 SGLang 为 LangGraph 提供问诊语义理解、字段提取和受约束问句生成；PPT 描述的**规划、工具调用、结果整合**是下一阶段 Diagnosis Agent 及业务编排的目标能力，不代表模型当前直接控制全部设备、调用全部算法或输出临床诊断。
 
-**协议分工**：Electron **IPC** 管本机窗口操作；**WebSocket** 用于医助端双向命令/反馈；患者端使用 **只读 SSE** 订阅活动会话与阶段；**媒体入口**承载预览、图片及录像。区分驱动与观察，避免界面重连导致业务流程误推进。
+**算法 Tool 的集成边界**：Face、Tongue、Sublingual、General 等 ToC 视觉 API 已具备独立部署与调用接口；它们不等于已经接入 LangGraph 的动态 Tool Calling。图中经 Tool 适配层的虚线体现**后续统一调用**，当前工作站仍主要通过自身采集流程及已有设备/服务接口协调。
+
+**脉诊和外设**：摄像头、麦克风、音响及补光灯已经纳入工作站使用场景；脉诊仪的 Linux 独立工具正在处理 CRC、缺号和波形展示问题。图中的设备适配接入、数据标准化与辅助诊断环节**尚待工程联调和验证**。
+
+**技术分工**：同机 Electron 双窗口不等于两台远程终端；窗口级操作走 IPC，医助双向控制走 WebSocket，患者状态观察走只读 SSE，图像与视频走独立媒体入口。业务状态由 FastAPI / LangGraph 协调，不由数字人独立决定。
 
 ## 02｜数字人语音、问诊与模型调用链
 
@@ -99,12 +130,42 @@ flowchart TD
 - **脉诊特别说明**：图中的脉诊阶段代表软件采集流程/适配接口位置。独立 Linux 脉诊工具已有硬件采集基础，但 CRC/丢号与波形展示尚在处理；**工作站真机闭环接入及验收未完成**。
 - **尚未交付**：标准特征匹配与个性化辅助诊断 Agent 的生产闭环、医学诊断报告与临床效果评估。
 
-## 04｜为什么不是一个“大模型包办所有功能”
+## 04｜下一阶段：诊断子 Agent 与 Tool 适配设计
+
+目前的软件工作站先得到**会话关联的问诊、面舌图像、视频和人工标注**，后续逐步补入脉诊仪的真实波形特征。对接诊断子 Agent 的最小数据路径可以是：
+
+```mermaid
+flowchart LR
+  CASE["四诊采集记录"] --> NORM["特征标准化与医生审核<br/>在建"]
+  NORM -.-> DIAG["诊断子 Agent<br/>目标"]
+  DIAG -.-> CAND["候选证候与证据缺口<br/>目标"]
+  CAND -.-> NEXT["补问 / 调用专业 Tool<br/>目标"]
+  NEXT -.-> FACE["视觉算法 API<br/>已独立服务化"]
+  NEXT -.-> PULSE["脉诊适配层<br/>待集成"]
+  NEXT -.-> KB["知识检索 / RAG<br/>规划"]
+  NEXT -.-> DOC["医生复核与决策<br/>目标"]
+```
+
+这里**不是当前已经运行的自主诊断链路**。未来 Diagnosis Agent 的任务是基于标准化特征判断还需要哪类证据，并建议继续问诊或调用专业工具；由 LangGraph 管理授权、分支和人工审核，不让模型直接控制硬件。
+
+### 脉诊设备接入的数据路径
+
+`脉诊仪 → Linux 采集程序（通信、帧校验、波形解析） → 设备适配 API → 会话标识关联 → 医助端波形显示 → 标注与归档`。
+
+其中**独立采集程序和硬件调试已有基础**，但串口数据完整性（CRC/缺号）、波形可视化和工作站会话闭环均需要继续验证。不要把这一规划路径理解为已完成的临床脉象识别。
+
+### 独立 ToC 服务与平台 Tool 的关系
+
+ToC 以 APP / 外部调用者为入口，向 **General、Face、Tongue、Sublingual** 等独立 FastAPI 服务发送请求，各服务维持自身模型生命周期并返回结构化结果，部署上由 Docker Compose 管理。
+
+如果未来作为平台 Tool，先做**统一输入输出适配、超时/错误边界、会话关联和调用权限控制**，再由诊断子 Agent 通过业务编排访问这些接口。**独立 API 的完成，不等于已实现 Agent 的动态工具调用。**
+
+## 05｜为什么不是一个“大模型包办所有功能”
 
 这个系统使用**确定性业务骨架 + LLM 语言能力 + 专业算法/设备服务 + 医助审核**：由 LangGraph 和代码规则控制采集阶段、缺项补问与暂停，大模型负责理解和受约束表达，采集算法/设备独立处理专业数据。后续才考虑在标准特征与医生复核基础上扩展证据缺口驱动的辅助诊断逻辑。
 
 ToC 视觉算法 API 是**另一条产品工程路线**，具备独立服务化部署，不应画成工作站业务的必经调用。详见 [工程案例](engineering-cases.md)。
 
-## 05｜素材位置
+## 06｜素材位置
 
 未来可以在本页补充已获授权的工作站架构配图、双屏真实界面和一段脱敏问诊/采集视频。**目前只用可阅读的 Mermaid 架构图，无真实素材时不填入伪截图或无法打开的图片链接。**
