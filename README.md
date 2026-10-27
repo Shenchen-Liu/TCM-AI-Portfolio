@@ -64,7 +64,7 @@ flowchart TB
   PAT <--> AVATAR
   AVATAR <--> API
   STAFF <-->|"控制 / 状态"| API
-  PAT <-->|"只读观察"| API
+  API -->|"只读 SSE 观察"| PAT
   API <--> GRAPH
   GRAPH <--> QWEN
   API --> CAMERA
