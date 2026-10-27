@@ -41,7 +41,7 @@ flowchart TB
   MIC --> OAC
   OAC <-->|"业务回复 / 会话关联"| BACK
   STAFF <-->|"HTTP + WebSocket"| BACK
-  PAT <-->|"只读 SSE"| BACK
+  BACK -->|"只读 SSE"| PAT
   BACK <--> GRAPH
   GRAPH <--> QWEN
   BACK --> CAM
