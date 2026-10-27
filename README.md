@@ -31,21 +31,67 @@
 
 [整体系统架构、数字人链路、四诊采集流程](docs/architecture.md) · [技术选型理由与 Trade-off](docs/design-decisions.md)
 
-### 一图理解工作站
+### 🧠 Qwen 底座驱动的多模态平台架构
+
+这张图同时展示**当前采集原型**与**下一阶段辅助诊断目标**：Qwen 作为共享语言模型底座，由 FastAPI 和 LangGraph 管理业务执行；视觉算法服务与外部脉诊设备保留独立运行能力，再逐步接入统一 Tool 体系。
 
 ```mermaid
-flowchart LR
-  A["患者屏<br/>引导 / 数字人"] <-->|"语音 / 交互"| O["OpenAvatarChat"]
-  S["医助屏<br/>控制 / 标注"] <-->|"HTTP + WS"| B["FastAPI<br/>业务协调"]
-  A <-->|"只读 SSE / 媒体"| B
-  O <-->|"会话关联 / 回复"| B
-  B <--> G["LangGraph<br/>采集状态 / 暂停恢复"]
-  G <--> Q["SGLang<br/>Qwen3.5-9B"]
-  B <--> C["摄像头 / 媒体服务"]
-  B --> D[("会话记录 / 图像视频")]
+flowchart TB
+  subgraph UI["交互入口 · 当前工作站"]
+    PAT["👤 患者屏<br/>数字人 / 采集引导"]
+    STAFF["🩺 医助屏<br/>接诊 / 监控 / 标注"]
+    AVATAR["OpenAvatarChat<br/>VAD / ASR / TTS / 数字人"]
+  end
+  subgraph ENGINE["业务中枢 + AI 智能底座"]
+    API["FastAPI<br/>会话 / 设备协调"]
+    GRAPH["LangGraph<br/>问诊 / 采集编排 / 人工接管"]
+    QWEN["🧠 Qwen3.5-9B 智能底座<br/>当前：理解 · 特征抽取 · 生成<br/>SGLang 本地推理"]
+  end
+  subgraph TOOLS["专业算法及外部设备"]
+    CAMERA["📷 摄像头 / 补光灯<br/>面舌图像与视频采集"]
+    ALGO["🔧 视觉算法 API<br/>Face / Tongue / Sublingual / General<br/>ToC 独立服务已实现"]
+    PULSE["📈 脉诊仪 + Linux 采集程序<br/>独立联调中"]
+  end
+  subgraph FUTURE["后续扩展 · 规划中"]
+    FEATURE["标准化特征与医生标注<br/>离线研究 / 接入推进中"]
+    DIAG["诊断子 Agent<br/>候选证候 / 证据缺口 / 动态追问"]
+    RAG["知识库 / RAG / 专业 Tool"]
+    DOCTOR["医生审核与个性化策略"]
+  end
+  RECORD[("会话档案 · 图像 / 视频 / 结构化信息")]
+  APP["ToC APP / 外部调用方"]
+
+  PAT <--> AVATAR
+  AVATAR <--> API
+  STAFF <-->|"控制 / 状态"| API
+  PAT <-->|"只读观察"| API
+  API <--> GRAPH
+  GRAPH <--> QWEN
+  API --> CAMERA
+  CAMERA --> RECORD
+  API --> RECORD
+  APP --> ALGO
+  API -.->|"后续 Tool 接入"| ALGO
+  PULSE -.->|"工作站集成中"| API
+  RECORD -.-> FEATURE
+  GRAPH -.->|"未来调度"| DIAG
+  QWEN -.->|"规划 / 推理支持"| DIAG
+  DIAG -.-> FEATURE
+  DIAG -.-> RAG
+  DIAG -.->|"调用工具（目标）"| ALGO
+  DIAG -.-> DOCTOR
+
+  classDef foundation fill:#e1f2ff,stroke:#1367b4,stroke-width:3px,color:#123653;
+  classDef planned fill:#f7f7f7,stroke:#8b939f,stroke-dasharray:5 4,color:#404851;
+  classDef partial fill:#fff4df,stroke:#c18a31,color:#4a3b1b;
+  class QWEN foundation;
+  class DIAG,RAG,DOCTOR planned;
+  class FEATURE,PULSE partial;
 ```
 
-这张图只展示**已具备的软件主体**；脉诊仪完整工作站接入不画为已交付的自动闭环。更细的三层架构和数字人链路见 [架构页](docs/architecture.md)。
+**图示约定：实线为当前软件调用或独立 API；虚线表示正在推进的集成或后续规划。** ToC 算法 API 已独立服务化，但“由诊断 Agent 作为 Tool 调用”仍是目标；脉诊仪有独立采集基础，工作站真机闭环尚未完成。Qwen 的规划、工具决策和证据整合能力将在后续诊断子 Agent 中扩展，当前不是全自主诊断系统。
+
+[查看分层架构与数字人调用链](docs/architecture.md) · [技术选型与取舍](docs/design-decisions.md)
 
 ## 03｜落地结果（STAR：R）
 
