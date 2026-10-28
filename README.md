@@ -34,8 +34,7 @@
 | **视觉算法工程化** | FastAPI 常驻推理服务、模型预加载与实例复用、图片内存传递，Docker 统一管理多个算法服务 |
 | **采集与部署** | 摄像头会话复用、媒体与业务入口分离、采集资料归档及 Linux 多组件联调 |
 
-<details>
-<summary><strong>📐 展开整体架构图（Qwen、采集 Agent 与专业 Tool）</strong></summary>
+### 🏗️ 整体系统架构
 
 ```mermaid
 flowchart TB
@@ -52,8 +51,8 @@ flowchart TB
   subgraph Sources["外部硬件与专用算法"]
     CAM["摄像头 / 补光灯<br/>图片 · 视频 · 媒体服务"]
     MIC["麦克风 / 音响"]
-    PULSE["脉诊仪 / 外部传感设备"]
-    PULSAPP["脉诊采集与波形处理<br/>设备适配 / 联调推进中"]
+    PULSE["脉诊仪<br/>Linux 设备已适配"]
+    PULSAPP["独立真机采集工具<br/>串口采集 / DAT 保存<br/>离线波形回放已验证"]
     VIS["视觉算法服务<br/>Face / Tongue / Sublingual / General<br/>独立 ToC FastAPI"]
   end
   subgraph Data["采集资料与后续特征层"]
@@ -80,7 +79,7 @@ flowchart TB
   BACK --> REC
   APP --> VIS
   PULSE --> PULSAPP
-  PULSAPP -.->|"待完整集成"| BACK
+  PULSAPP -.->|"真实数据接入中"| BACK
   REC -.->|"标准化接入推进"| STANDARD
   GRAPH -.->|"后续子图/路由"| DIAG
   QWEN -.->|"规划 / 推理与结果整合"| DIAG
@@ -94,20 +93,20 @@ flowchart TB
   classDef brain fill:#deefff,stroke:#175caa,stroke-width:3px,color:#123653;
   classDef planned fill:#f7f7f7,stroke:#9098a4,stroke-dasharray:5 4,color:#47515d;
   classDef ongoing fill:#fff3de,stroke:#b9802e,color:#554020;
+  classDef adapted fill:#e5f5ec,stroke:#277852,stroke-width:2px,color:#194d35;
   class QWEN brain;
   class DIAG,TOOL,RAG,REVIEW planned;
-  class PULSAPP,STANDARD ongoing;
+  class STANDARD ongoing;
+  class PULSE,PULSAPP adapted;
 ```
 
-实线表示已具备的组件交互，虚线表示接入中或后续能力。完整的运行时调用链见 [系统架构与数据流](docs/architecture.md)。
-
-</details>
+实线表示已具备的组件交互，虚线表示接入中或后续能力。详细调用链见 [系统架构与数据流](docs/architecture.md)。
 
 ## 🚀 03｜交付成果
 
 ### 🩺 ToB 四诊采集工作站
 
-形成可运行的**患者端 + 医助端双屏原型**：数字人引导多轮问诊、面舌采集；医助端完成流程控制、采集监控、资料回看和人工接管。脉诊设备与波形的工作站集成持续推进。
+形成可运行的**患者端 + 医助端双屏原型**：数字人引导多轮问诊、面舌采集；医助端完成流程控制、采集监控、资料回看和人工接管。脉诊仪已完成 Linux 真机适配与独立采集验证，正在衔接工作站会话流程。
 
 <p align="center">
   <img src="assets/%E5%8C%BB%E9%99%A2%E8%AF%95%E7%94%A8.png" alt="四诊工作站医院试用现场" width="760" />
