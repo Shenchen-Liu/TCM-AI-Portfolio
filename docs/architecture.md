@@ -2,7 +2,7 @@
 
 [返回作品集](../README.md) · [技术决策](design-decisions.md) · [工程案例](engineering-cases.md)
 
-以 **ToB 四诊采集工作站**为核心，连接 Qwen 智能底座、双屏数字人交互、专业视觉算法服务及脉诊仪等外部设备，同时为诊断子 Agent 和个性化辅助诊疗预留能力扩展空间。**实线代表现有服务与数据流，虚线代表集成推进或后续规划。**
+以 **ToB 四诊采集工作站**为核心，连接 Qwen 智能底座、双屏数字人交互及独立视觉算法服务；脉诊仪已完成 Linux 设备适配与真机采集验证，正在对接工作站会话流程。同时为诊断子 Agent 和个性化辅助诊疗预留扩展空间。**实线代表现有服务与数据流，虚线代表集成推进或后续规划。**
 
 ## 01｜整体架构：Qwen 底座、采集 Agent 与专业 Tool
 
@@ -21,8 +21,8 @@ flowchart TB
   subgraph Sources["外部硬件与专用算法"]
     CAM["摄像头 / 补光灯<br/>图片 · 视频 · 媒体服务"]
     MIC["麦克风 / 音响"]
-    PULSE["脉诊仪 / 外部传感设备"]
-    PULSAPP["脉诊采集与波形处理<br/>设备适配 / 联调推进中"]
+    PULSE["脉诊仪<br/>Linux 设备已适配"]
+    PULSAPP["独立真机采集工具<br/>串口采集 / DAT 保存<br/>离线波形回放已验证"]
     VIS["视觉算法服务<br/>Face / Tongue / Sublingual / General<br/>独立 ToC FastAPI"]
   end
   subgraph Data["采集资料与后续特征层"]
@@ -49,7 +49,7 @@ flowchart TB
   BACK --> REC
   APP --> VIS
   PULSE --> PULSAPP
-  PULSAPP -.->|"待完整集成"| BACK
+  PULSAPP -.->|"真实数据接入中"| BACK
   REC -.->|"标准化接入推进"| STANDARD
   GRAPH -.->|"后续子图/路由"| DIAG
   QWEN -.->|"规划 / 推理与结果整合"| DIAG
@@ -63,16 +63,18 @@ flowchart TB
   classDef brain fill:#deefff,stroke:#175caa,stroke-width:3px,color:#123653;
   classDef planned fill:#f7f7f7,stroke:#9098a4,stroke-dasharray:5 4,color:#47515d;
   classDef ongoing fill:#fff3de,stroke:#b9802e,color:#554020;
+  classDef adapted fill:#e5f5ec,stroke:#277852,stroke-width:2px,color:#194d35;
   class QWEN brain;
   class DIAG,TOOL,RAG,REVIEW planned;
-  class PULSAPP,STANDARD ongoing;
+  class STANDARD ongoing;
+  class PULSE,PULSAPP adapted;
 ```
 
 **Qwen 底座的准确定位**：当前 Qwen 经 SGLang 为 LangGraph 提供问诊语义理解、字段提取和受约束问句生成；PPT 描述的**规划、工具调用、结果整合**是下一阶段 Diagnosis Agent 及业务编排的目标能力，不代表模型当前直接控制全部设备、调用全部算法或输出临床诊断。
 
 **算法 Tool 的集成边界**：Face、Tongue、Sublingual、General 等 ToC 视觉 API 已具备独立部署与调用接口；它们不等于已经接入 LangGraph 的动态 Tool Calling。图中经 Tool 适配层的虚线体现**后续统一调用**，当前工作站仍主要通过自身采集流程及已有设备/服务接口协调。
 
-**脉诊和外设**：工作站面向摄像头、麦克风、音响、补光灯和脉诊仪等多模态设备。脉诊模块具备独立采集基础，正推进通信数据质量、波形呈现和统一会话接入；后续可通过设备适配服务与标注体系联动。
+**脉诊仪适配**：已在 Linux 工作站完成真机串口通信、采集停止、原始 DAT 保存及离线波形回放验证。当前 LangGraph 脉诊子图仍使用 MockPulseAdapter；独立采集工具与工作站会话、医助端实时波形及统一归档的对接正在推进。
 
 **技术分工**：同机 Electron 双窗口不等于两台远程终端；窗口级操作走 IPC，医助双向控制走 WebSocket，患者状态观察走只读 SSE，图像与视频走独立媒体入口。业务状态由 FastAPI / LangGraph 协调，不由数字人独立决定。
 
@@ -115,7 +117,7 @@ flowchart TD
   F --> TT["舌面图像采集"]
   TT --> TB["舌下图像采集"]
   TB --> GAIT["已有步态记录检查"]
-  GAIT --> P["脉诊阶段 / 设备适配"]
+  GAIT --> P["脉诊阶段 / 医助确认"]
   P --> CHECK{"采集完整性检查"}
   CHECK -->|"按规则补采"| F
   CHECK -->|"收尾"| R["会话记录 + 媒体归档"]
@@ -127,12 +129,12 @@ flowchart TD
 
 - **已实现的软件基础**：主图串联采集阶段；问诊子图维护字段、意图、缺项与重试；面舌等子图按引导、等待、执行、质量检查组织流程，数据归档按同一会话关联。医助可监督、基础标注和接管。
 - **暂停与恢复**：检查点保存 Graph 的业务状态，不能自动重建活动摄像头句柄、OAC 语音连接和全部设备状态。
-- **脉诊特别说明**：图中的脉诊阶段包含设备接口和采集流程的衔接设计；独立脉诊采集已有基础，设备数据、波形展示与 ToB 四诊采集工作站的完整闭环仍在联调完善。
+- **脉诊进展**：Linux 真机采集、DAT 保存和离线波形处理已验证；当前主流程脉诊节点采用模拟适配器，正在接入真实设备数据及会话关联。
 - **尚未交付**：标准特征匹配与个性化辅助诊断 Agent 的生产闭环、医学诊断报告与临床效果评估。
 
 ## 04｜下一阶段：诊断子 Agent 与 Tool 适配设计
 
-目前的 ToB 四诊采集工作站先形成**会话关联的问诊、面舌图像、视频和人工标注**，后续逐步补入脉诊仪的真实波形特征。对接诊断子 Agent 的最小数据路径可以是：
+目前的 ToB 四诊采集工作站先形成**会话关联的问诊、面舌图像、视频和人工标注**，脉诊仪已具备独立真机采集基础，后续将采集结果接入统一会话及标注链路。对接诊断子 Agent 的最小数据路径可以是：
 
 ```mermaid
 flowchart LR
@@ -141,18 +143,18 @@ flowchart LR
   DIAG -.-> CAND["候选证候与证据缺口<br/>目标"]
   CAND -.-> NEXT["补问 / 调用专业 Tool<br/>目标"]
   NEXT -.-> FACE["视觉算法 API<br/>已独立服务化"]
-  NEXT -.-> PULSE["脉诊适配层<br/>待集成"]
+  NEXT -.-> PULSE["Linux 脉诊采集工具<br/>已适配 / 平台 Tool 待接入"]
   NEXT -.-> KB["知识检索 / RAG<br/>规划"]
   NEXT -.-> DOC["医生复核与决策<br/>目标"]
 ```
 
 这里**不是当前已经运行的自主诊断链路**。未来 Diagnosis Agent 的任务是基于标准化特征判断还需要哪类证据，并建议继续问诊或调用专业工具；由 LangGraph 管理授权、分支和人工审核，不让模型直接控制硬件。
 
-### 脉诊设备接入的数据路径
+### 脉诊设备的数据链路
 
-`脉诊仪 → 采集与波形处理模块 → 设备适配接口 → 工作站会话关联 → 医助端实时显示 → 标注与归档`。
+**已验证**：`脉诊仪 → Linux 串口采集工具 → DAT 保存 / 离线波形回放`。
 
-脉诊采集和设备适配已有工程基础，仍需完善数据完整性、波形显示与工作站会话级归档；脉象分析与诊断能力作为后续专业工具扩展。
+**平台接入方向**：`独立采集工具 → 工作站会话关联 → 医助端波形展示 → 标注与归档`。现有业务子图仍使用模拟适配器，真实设备采集数据的统一接入继续推进；脉象辅助诊断属于下一阶段。
 
 ### 独立 ToC 服务与平台 Tool 的关系
 
