@@ -2,7 +2,7 @@
 
 [返回作品集](../README.md) · [技术决策](design-decisions.md) · [工程案例](engineering-cases.md)
 
-以 **ToB 四诊采集工作站**为核心，连接 Qwen 智能底座、双屏数字人交互及独立视觉算法服务；脉诊仪已完成 Linux 设备适配与真机采集验证，正在对接工作站会话流程。同时为诊断子 Agent 和个性化辅助诊疗预留扩展空间。**实线代表现有服务与数据流，虚线代表集成推进或后续规划。**
+以 **ToB 四诊采集工作站**为核心，整合 Qwen 智能底座、双屏数字人交互、独立视觉算法服务与脉诊仪等传感设备的采集适配模块，并为诊断子 Agent 和个性化辅助诊疗预留扩展空间。**实线代表现有服务与数据流，虚线代表集成推进或后续规划。**
 
 ## 01｜整体架构：Qwen 底座、采集 Agent 与专业 Tool
 
@@ -21,8 +21,8 @@ flowchart TB
   subgraph Sources["外部硬件与专用算法"]
     CAM["摄像头 / 补光灯<br/>图片 · 视频 · 媒体服务"]
     MIC["麦克风 / 音响"]
-    PULSE["脉诊仪<br/>Linux 设备已适配"]
-    PULSAPP["独立真机采集工具<br/>串口采集 / DAT 保存<br/>离线波形回放已验证"]
+    PULSE["脉诊仪等传感器设备"]
+    PULSAPP["设备采集适配模块"]
     VIS["视觉算法服务<br/>Face / Tongue / Sublingual / General<br/>独立 ToC FastAPI"]
   end
   subgraph Data["采集资料与后续特征层"]
@@ -49,7 +49,7 @@ flowchart TB
   BACK --> REC
   APP --> VIS
   PULSE --> PULSAPP
-  PULSAPP -.->|"真实数据接入中"| BACK
+  PULSAPP -.-> BACK
   REC -.->|"标准化接入推进"| STANDARD
   GRAPH -.->|"后续子图/路由"| DIAG
   QWEN -.->|"规划 / 推理与结果整合"| DIAG
@@ -63,11 +63,9 @@ flowchart TB
   classDef brain fill:#deefff,stroke:#175caa,stroke-width:3px,color:#123653;
   classDef planned fill:#f7f7f7,stroke:#9098a4,stroke-dasharray:5 4,color:#47515d;
   classDef ongoing fill:#fff3de,stroke:#b9802e,color:#554020;
-  classDef adapted fill:#e5f5ec,stroke:#277852,stroke-width:2px,color:#194d35;
   class QWEN brain;
   class DIAG,TOOL,RAG,REVIEW planned;
   class STANDARD ongoing;
-  class PULSE,PULSAPP adapted;
 ```
 
 **Qwen 底座的准确定位**：当前 Qwen 经 SGLang 为 LangGraph 提供问诊语义理解、字段提取和受约束问句生成；PPT 描述的**规划、工具调用、结果整合**是下一阶段 Diagnosis Agent 及业务编排的目标能力，不代表模型当前直接控制全部设备、调用全部算法或输出临床诊断。
