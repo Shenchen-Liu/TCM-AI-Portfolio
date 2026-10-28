@@ -51,8 +51,8 @@ flowchart TB
   subgraph Sources["外部硬件与专用算法"]
     CAM["摄像头 / 补光灯<br/>图片 · 视频 · 媒体服务"]
     MIC["麦克风 / 音响"]
-    PULSE["脉诊仪<br/>Linux 设备已适配"]
-    PULSAPP["独立真机采集工具<br/>串口采集 / DAT 保存<br/>离线波形回放已验证"]
+    PULSE["脉诊仪等传感器设备"]
+    PULSAPP["设备采集适配模块"]
     VIS["视觉算法服务<br/>Face / Tongue / Sublingual / General<br/>独立 ToC FastAPI"]
   end
   subgraph Data["采集资料与后续特征层"]
@@ -79,7 +79,7 @@ flowchart TB
   BACK --> REC
   APP --> VIS
   PULSE --> PULSAPP
-  PULSAPP -.->|"真实数据接入中"| BACK
+  PULSAPP -.-> BACK
   REC -.->|"标准化接入推进"| STANDARD
   GRAPH -.->|"后续子图/路由"| DIAG
   QWEN -.->|"规划 / 推理与结果整合"| DIAG
@@ -93,11 +93,9 @@ flowchart TB
   classDef brain fill:#deefff,stroke:#175caa,stroke-width:3px,color:#123653;
   classDef planned fill:#f7f7f7,stroke:#9098a4,stroke-dasharray:5 4,color:#47515d;
   classDef ongoing fill:#fff3de,stroke:#b9802e,color:#554020;
-  classDef adapted fill:#e5f5ec,stroke:#277852,stroke-width:2px,color:#194d35;
   class QWEN brain;
   class DIAG,TOOL,RAG,REVIEW planned;
   class STANDARD ongoing;
-  class PULSE,PULSAPP adapted;
 ```
 
 实线表示已具备的组件交互，虚线表示接入中或后续能力。详细调用链见 [系统架构与数据流](docs/architecture.md)。
@@ -106,12 +104,12 @@ flowchart TB
 
 ### 🩺 ToB 四诊采集工作站
 
-形成可运行的**患者端 + 医助端双屏原型**：数字人引导多轮问诊、面舌采集；医助端完成流程控制、采集监控、资料回看和人工接管。脉诊仪已完成 Linux 真机适配与独立采集验证，正在衔接工作站会话流程。
+形成面向患者端与医助端的**双屏四诊采集工作站**，整合数字人问诊、面舌采集、脉诊仪等传感器设备接入，以及医助端流程管理与资料归档，**已在合作医院开展试用**。
 
 <p align="center">
-  <img src="assets/%E5%8C%BB%E9%99%A2%E8%AF%95%E7%94%A8.png" alt="四诊工作站医院试用现场" width="760" />
+  <img src="assets/%E5%8C%BB%E9%99%A2%E8%AF%95%E7%94%A8.png" alt="四诊工作站合作医院试用现场" width="760" />
 </p>
-<p align="center"><sub>医院试用现场 · 双屏工作站与采集环境</sub></p>
+<p align="center"><sub>合作医院试用现场 · 双屏工作站与采集环境</sub></p>
 
 **采集系统演示（2× 加速）**
 
